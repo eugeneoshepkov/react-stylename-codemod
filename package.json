@@ -1,0 +1,21 @@
+{
+  "name": "react-stylename-codemod",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/codemod.js",
+  "types": "dist/codemod.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "jscodeshift": "0.13.0"
+  },
+  "devDependencies": {
+    "vitest": "^0.30.1"
+  }
+}
