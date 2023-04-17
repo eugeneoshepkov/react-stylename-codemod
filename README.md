@@ -16,13 +16,25 @@ This codemod requires the following:
 
 ## Usage
 
+```bash
+# with npm
+npm add react-stylename-codemod
+
+# with yarn
+yarn add react-stylename-codemod
+
+# with pnpm
+pnpm add react-stylename-codemod
+
+```
+
 To use this codemod, simply run the following command:
 
 ```bash
 jscodeshift -t path/to/this/codemod.ts path/to/your/source/code
 
 #example
-jscodeshift -t node_modules/eugeneo/react-stylename-codemod/codemod.ts ./src/* --extensions=tsx
+jscodeshift -t node_modules/react-stylename-codemod/stylename-codemod.ts ./src/* --extensions=tsx
 ```
 
 Please note that this codemod assumes the use of the styles object imported from the SCSS files and the clsx library for handling multiple or conditional class names. Make sure to install the clsx library if you haven't already:
