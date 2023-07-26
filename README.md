@@ -8,6 +8,10 @@ This codemod performs the following transformations to the source code:
 
 <ol><li>Renames the <code>styleName</code> attribute to <code>className</code> in JSX elements.</li><li>Modifies the <code>className</code> value to use the imported <code>styles</code> object.</li><li>Replaces multiple class names in a <code>styleName</code> attribute with a <code>clsx</code> expression.</li><li>Adds the <code>clsx</code> import if not already present.</li><li>Renames the import identifier for <code>clsx</code> if it's not 'clsx'.</li><li>Updates the SCSS import statements to import the CSS modules as 'styles'.</li><li>Removes the <code>className</code> attribute from JSX elements if they also have a <code>styleName</code> attribute.</li></ol>
 
+---
+
+Note: Files that do not contain <code>import "./ModuleName.scss"</code> attribute will not be modified. This is to prevent the codemod from modifying files that do not use "babel-plugin-react-css-modules" syntax.
+
 ## Pre-requisites
 
 This codemod requires the following:
