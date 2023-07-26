@@ -46,6 +46,13 @@ const addClsxImport = (root) => {
   return root;
 };
 
+const getStylesMemberExpression = (node, isKeyInKebabCase) =>
+  j.memberExpression(
+    j.identifier("styles"),
+    isKeyInKebabCase ? j.stringLiteral(node.value) : j.identifier(node.value),
+    isKeyInKebabCase
+  );
+
 const isKebabCase = (prop: any, value: string) =>
   prop.type === "StringLiteral" && !!value.match(/-/);
 /*
@@ -74,7 +81,6 @@ const renameStyleNameVariable = (source: JSCodeshift) => {
 // before: <div className="someClass" styleName="someOtherClass" />
 // after: <div styleName="someOtherClass" />
 const removeClassNamePropAndSaveValue = (openingElement) => {
-  const classNameProp = null;
   const { attributes } = openingElement;
   const styleNameAttribute = attributes.find(
     (attr) => attr.type === "JSXAttribute" && attr.name.name === "styleName"
@@ -314,13 +320,7 @@ const modifyStyleNameProp = (
         j.jsxExpressionContainer(
           styleNamePropValue.type === "JSXExpressionContainer"
             ? modifyStyleNameExpression(styleNamePropValue.expression)
-            : j.memberExpression(
-                j.identifier("styles"),
-                isKeyInKebabCase
-                  ? j.stringLiteral(styleNamePropValue.value)
-                  : j.identifier(styleNamePropValue.value),
-                isKeyInKebabCase
-              )
+            : getStylesMemberExpression(styleNamePropValue, isKeyInKebabCase)
         )
       )
     );
@@ -354,15 +354,55 @@ const modifyStyleNameProp = (
         getModifiedClsxExpression(clsxExpression.node, classNamePropValue)
       );
     });
+
+    // if className is clsx expression, merge it with styleName clsx expression
+    if (
+      classNamePropValue?.expression &&
+      classNamePropValue.expression.type === "CallExpression" &&
+      ["clsx", "cn"].includes(classNamePropValue.expression.callee.name)
+    ) {
+      // if styleName is clsx expression, merge it with className clsx expression
+      if (
+        styleNamePropValue.type === "JSXExpressionContainer" &&
+        styleNamePropValue.expression.type === "CallExpression" &&
+        ["clsx", "cn"].includes(styleNamePropValue.expression.callee.name)
+      ) {
+        const mergedClsxExpression = j.callExpression(j.identifier("clsx"), [
+          ...styleNamePropValue.expression.arguments.map((arg) =>
+            getStylesMemberExpression(arg, isKebabCase(arg, arg.value))
+          ),
+          ...classNamePropValue.expression.arguments,
+        ]);
+
+        j(styleNameProp).replaceWith(
+          j.jsxAttribute(
+            j.jsxIdentifier("className"),
+            j.jsxExpressionContainer(mergedClsxExpression)
+          )
+        );
+
+        return;
+      }
+
+      j(styleNameProp).replaceWith(
+        j.jsxAttribute(
+          j.jsxIdentifier("className"),
+          j.jsxExpressionContainer(
+            j.callExpression(j.identifier("clsx"), [
+              getStylesMemberExpression(styleNamePropValue, isKeyInKebabCase),
+              ...classNamePropValue.expression.arguments,
+            ])
+          )
+        )
+      );
+    }
   });
 
   const clsxExpression = source.find(j.CallExpression).filter((path) => {
-    // filter out those clsx calls that are in JSXExpressionContainer
-
     const parent = path.parent.node;
     return (
       path.node.callee.name === "clsx" &&
-      parent.type !== "JSXExpressionContainer"
+      parent.type !== "JSXExpressionContainer" // filter out those clsx calls that are in JSXExpressionContainer
     );
   });
 

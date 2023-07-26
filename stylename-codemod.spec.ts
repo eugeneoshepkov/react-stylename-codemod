@@ -373,6 +373,31 @@ describe("styleName-codemod", () => {
             );
           };
 
+          const Button = () => (
+            <button
+              styleName="container"
+              className={clsx({
+                'mt-48': false,
+                'mt-24': true,
+              })}
+            >
+              Click me
+            </button>
+          );
+
+          const WithClsxInBothProps = () => (
+            <button
+              styleName={clsx('container', 'some-class')}
+              className={clsx({
+                'mt-48': false,
+                'mt-24': true,
+              })}
+            >
+              Surprisingly, it works!
+            </button>
+          );
+          
+
           export default Input;
         `;
 
@@ -394,6 +419,27 @@ describe("styleName-codemod", () => {
                     />
                   );
                 };
+
+                const Button = () => (
+                  <button
+                    className={clsx(styles.container, {
+                      'mt-48': false,
+                      'mt-24': true,
+                    })}>
+                    Click me
+                  </button>
+                );
+
+                const WithClsxInBothProps = () => (
+                  <button
+                    className={clsx(styles.container, styles['some-class'], {
+                      'mt-48': false,
+                      'mt-24': true,
+                    })}>
+                    Surprisingly, it works!
+                  </button>
+                );
+
 
                 export default Input;
               "
