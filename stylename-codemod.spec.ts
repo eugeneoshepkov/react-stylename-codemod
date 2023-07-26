@@ -353,4 +353,50 @@ describe("styleName-codemod", () => {
              "
     `);
   });
+
+  it("should combine styleName and className props if they are both present", () => {
+    const source = `
+          import React from 'react';
+          import './styles.scss';
+
+          const Input = () => {
+            return (
+              <input className="mt-16 mb-16" styleName="description"
+              />
+            );
+          };
+
+          const Link = () => {
+            return (
+              <a href="/abc" styleName="test"
+              />
+            );
+          };
+
+          export default Input;
+        `;
+
+    const result = transform({ source, path: "/" }, api, {});
+
+    expect(result).toMatchInlineSnapshot(`
+      "
+                import clsx from 'clsx';
+                import React from 'react';
+                import styles from './styles.scss';
+
+                const Input = () => {
+                  return <input className={clsx(styles.description, \\"mt-16 mb-16\\")} />;
+                };
+
+                const Link = () => {
+                  return (
+                    <a href=\\"/abc\\" className={styles.test}
+                    />
+                  );
+                };
+
+                export default Input;
+              "
+    `);
+  });
 });

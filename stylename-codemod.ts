@@ -1,5 +1,5 @@
-import j, { JSXAttribute, Transform } from 'jscodeshift';
-import { JSCodeshift } from 'jscodeshift/src/core';
+import j, { JSXAttribute, Transform } from "jscodeshift";
+import { JSCodeshift } from "jscodeshift/src/core";
 
 /*
  * Rename the import identifier for clsx if it's not 'clsx'
@@ -10,13 +10,13 @@ const renameClsxImportIdentifier = (root) => {
   root
     .find(j.ImportDeclaration, {
       source: {
-        value: 'clsx',
+        value: "clsx",
       },
     })
     .find(j.ImportDefaultSpecifier)
     .forEach((path) => {
       // eslint-disable-next-line no-param-reassign
-      path.node.local.name = 'clsx';
+      path.node.local.name = "clsx";
     });
 };
 
@@ -28,14 +28,14 @@ let clsxExpressionUsed = false;
 const addClsxImport = (root) => {
   // Check if import statement for clsx already exists
   const existingImport = root.find(j.ImportDeclaration, {
-    source: { value: 'clsx' },
+    source: { value: "clsx" },
   });
 
   if (existingImport.length === 0) {
     // Create new import statement for clsx
     const newImport = j.importDeclaration(
-      [j.importDefaultSpecifier(j.identifier('clsx'))],
-      j.literal('clsx'),
+      [j.importDefaultSpecifier(j.identifier("clsx"))],
+      j.literal("clsx")
     );
 
     // Add the new import statement to the top of the program
@@ -47,14 +47,14 @@ const addClsxImport = (root) => {
 };
 
 const isKebabCase = (prop: any, value: string) =>
-  prop.type === 'StringLiteral' && !!value.match(/-/);
+  prop.type === "StringLiteral" && !!value.match(/-/);
 /*
  * Find all the scss import statements that don't have a default specifier
  */
 const getScssImports = (source: JSCodeshift) =>
   source.find(j.ImportDeclaration).filter((path) => {
     const { specifiers, source } = path.node;
-    return specifiers.length === 0 && source.value.endsWith('.scss');
+    return specifiers.length === 0 && source.value.endsWith(".scss");
   });
 
 /*
@@ -64,46 +64,47 @@ const getScssImports = (source: JSCodeshift) =>
  */
 const renameStyleNameVariable = (source: JSCodeshift) => {
   source.find(j.Identifier).forEach((path) => {
-    if (path.node.name === 'styleName') {
-      j(path).replaceWith(j.identifier('baseClassName'));
+    if (path.node.name === "styleName") {
+      j(path).replaceWith(j.identifier("baseClassName"));
     }
   });
 };
 
 // if component has className prop along with styleName, remove className
 // before: <div className="someClass" styleName="someOtherClass" />
-// after: <div className={styles.someOtherClass} />
-const removeClassNameAttribute = (source: JSCodeshift) => {
-  source.findJSXElements().forEach((path) => {
-    const { openingElement } = path.node;
-    const { attributes } = openingElement;
-    const styleNameAttribute = attributes.find(
-      (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'styleName',
-    );
-    const classNameAttribute = attributes.find(
-      (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'className',
-    );
+// after: <div styleName="someOtherClass" />
+const removeClassNamePropAndSaveValue = (openingElement) => {
+  const classNameProp = null;
+  const { attributes } = openingElement;
+  const styleNameAttribute = attributes.find(
+    (attr) => attr.type === "JSXAttribute" && attr.name.name === "styleName"
+  );
+  const classNameAttribute = attributes.find(
+    (attr) => attr.type === "JSXAttribute" && attr.name.name === "className"
+  );
 
-    if (styleNameAttribute && classNameAttribute) {
-      // Remove the classNameProp from the attributes array
-      const index = attributes.indexOf(classNameAttribute);
-      attributes.splice(index, 1);
-    }
-  });
+  if (styleNameAttribute && classNameAttribute) {
+    // Remove the classNameProp from the attributes array
+    const index = attributes.indexOf(classNameAttribute);
+    attributes.splice(index, 1);
+    return classNameAttribute.value;
+  }
+
+  return null;
 };
 
 const modifyScssImports = (source: JSCodeshift) => {
   const scssImports = getScssImports(source);
   // replace the import statement with the css import statement
-  const cssImportSpecifier = j.importDefaultSpecifier(j.identifier('styles'));
+  const cssImportSpecifier = j.importDefaultSpecifier(j.identifier("styles"));
 
   scssImports.forEach((scssImport) =>
     j(scssImport).replaceWith(
       j.importDeclaration(
         [...scssImport.node.specifiers, cssImportSpecifier],
-        scssImport.node.source,
-      ),
-    ),
+        scssImport.node.source
+      )
+    )
   );
 };
 
@@ -114,8 +115,8 @@ const modifyScssImports = (source: JSCodeshift) => {
 const getClassNamesObjectProperties = (object: j.ObjectExpression) =>
   object.properties.map((prop) => {
     if (
-      prop.type === 'ObjectProperty' &&
-      ['Identifier', 'StringLiteral'].includes(prop.key.type)
+      prop.type === "ObjectProperty" &&
+      ["Identifier", "StringLiteral"].includes(prop.key.type)
     ) {
       // if it's shorthand property, don't do anything
       if (prop.shorthand) {
@@ -123,14 +124,14 @@ const getClassNamesObjectProperties = (object: j.ObjectExpression) =>
       }
       // if property key is kebab case, use computed property
       const computedPropertyNameExpression = j.memberExpression(
-        j.identifier('styles'),
+        j.identifier("styles"),
         prop.key,
-        isKebabCase(prop.key, prop.key.value),
+        isKebabCase(prop.key, prop.key.value)
       );
 
       const property = j.objectProperty(
         computedPropertyNameExpression,
-        prop.value,
+        prop.value
       );
 
       property.computed = true;
@@ -140,16 +141,16 @@ const getClassNamesObjectProperties = (object: j.ObjectExpression) =>
 
     // before { [`spacing-${direction}--${spacing}`]: true }
     // after { [styles[`spacing-${direction}--${spacing}`]]: true }
-    if (prop.type === 'ObjectProperty' && prop.key.type === 'TemplateLiteral') {
+    if (prop.type === "ObjectProperty" && prop.key.type === "TemplateLiteral") {
       const computedPropertyNameExpression = j.memberExpression(
-        j.identifier('styles'),
+        j.identifier("styles"),
         prop.key,
-        true,
+        true
       );
 
       const property = j.objectProperty(
         computedPropertyNameExpression,
-        prop.value,
+        prop.value
       );
 
       property.computed = true;
@@ -168,59 +169,66 @@ const getClassNamesObjectProperties = (object: j.ObjectExpression) =>
  * clsx(styles.someClass, styles[className], { [styles.someOtherClass]: true })
  * @param callExpression
  */
-const getModifiedClsxExpression = (callExpression: j.CallExpression) =>
+const getModifiedClsxExpression = (
+  callExpression: j.CallExpression,
+  classNamePropValue = null
+) =>
   j.callExpression(
-    j.identifier('clsx'),
+    j.identifier("clsx"),
     callExpression.arguments.map((arg) => {
+      if (classNamePropValue && arg === classNamePropValue) {
+        // skip if the argument is className prop value (assuming that this is a global class names, e.g. ml-2, px-4)
+        return arg;
+      }
       // if the argument is a string, convert to styles.string
-      if (arg.type === 'StringLiteral') {
+      if (arg.type === "StringLiteral") {
         // if the string is kebab case, use computed property (styles['some-class'])
         if (arg.value.match(/-/)) {
           return j.memberExpression(
-            j.identifier('styles'),
+            j.identifier("styles"),
             j.stringLiteral(arg.value),
-            true,
+            true
           );
         }
 
         return j.memberExpression(
-          j.identifier('styles'),
-          j.identifier(arg.value),
+          j.identifier("styles"),
+          j.identifier(arg.value)
         );
       }
 
       // before: `flexbox-direction--${direction}`
       // after: styles[`flexbox-direction--${direction}`]
-      if (arg.type === 'TemplateLiteral') {
-        return j.memberExpression(j.identifier('styles'), arg, true);
+      if (arg.type === "TemplateLiteral") {
+        return j.memberExpression(j.identifier("styles"), arg, true);
       }
 
       // if the argument is a variable, convert to [styles.variable] unless it's className
-      if (arg.type === 'Identifier' && arg.name !== 'className') {
+      if (arg.type === "Identifier" && arg.name !== "className") {
         return j.memberExpression(
-          j.identifier('styles'),
+          j.identifier("styles"),
           j.identifier(arg.name),
-          true,
+          true
         );
       }
 
-      if (arg.type === 'ObjectExpression') {
+      if (arg.type === "ObjectExpression") {
         const properties = getClassNamesObjectProperties(arg);
         return j.objectExpression(properties);
       }
 
       return arg;
-    }),
+    })
   );
 
 /*
  * Transform the source code to replace "styleName" prop  with "className={styles[styleName]}"
  */
 const modifyStyleNameExpression = (styleNameExpression: j.Expression) => {
-  if (styleNameExpression.type === 'MemberExpression') {
+  if (styleNameExpression.type === "MemberExpression") {
     return j.memberExpression(
-      j.identifier('styles'),
-      styleNameExpression.property,
+      j.identifier("styles"),
+      styleNameExpression.property
     );
   }
 
@@ -229,20 +237,21 @@ const modifyStyleNameExpression = (styleNameExpression: j.Expression) => {
 
 const getClsxExpressionForClassNames = (
   styleNamePropValue,
-  classNames: string[],
+  classNames: string[]
 ) =>
-  j.callExpression(j.identifier('clsx'), [
-    ...classNames.map((className) => {
+  j.callExpression(
+    j.identifier("clsx"),
+    classNames.map((className) => {
       const isClassInKebabCase = isKebabCase(styleNamePropValue, className);
       return j.memberExpression(
-        j.identifier('styles'),
+        j.identifier("styles"),
         isClassInKebabCase
           ? j.stringLiteral(className)
           : j.identifier(className),
-        isClassInKebabCase,
+        isClassInKebabCase
       );
-    }),
-  ]);
+    })
+  );
 
 /*
  * Transform the source code to replace multiple class names with clsx
@@ -250,17 +259,17 @@ const getClsxExpressionForClassNames = (
  * after: className={clsx(styles.someClass, styles.someOtherClass)}
  */
 const transformClassNamesToClsx = (styleNameProp, styleNamePropValue) => {
-  const classNames = styleNamePropValue.value.split(' ');
+  const classNames = styleNamePropValue.value.split(" ");
   const clsxExpression = getClsxExpressionForClassNames(
     styleNamePropValue,
-    classNames,
+    classNames
   );
 
   j(styleNameProp).replaceWith(
     j.jsxAttribute(
-      j.jsxIdentifier('className'),
-      j.jsxExpressionContainer(clsxExpression),
-    ),
+      j.jsxIdentifier("className"),
+      j.jsxExpressionContainer(clsxExpression)
+    )
   );
 
   clsxExpressionUsed = true;
@@ -272,21 +281,23 @@ const transformClassNamesToClsx = (styleNameProp, styleNamePropValue) => {
  */
 const modifyStyleNameProp = (
   styleNameProps: j.JSXAttribute[],
-  source: JSCodeshift,
+  source: JSCodeshift
 ) => {
   styleNameProps.forEach((prop) => {
     const styleNameProp = prop;
     const styleNamePropValue = styleNameProp.node.value;
+    const openingElement = styleNameProp.parent.node;
 
     // remove outdated className prop
-    removeClassNameAttribute(source);
+    const classNamePropValue =
+      removeClassNamePropAndSaveValue(openingElement) || null;
 
     // if styleName is a string of classes separated by a space, add them one by one to the className
     // before: styleName="someClass someOtherClass"
     // after: className={clsx(styles.someClass, styles.someOtherClass)}
     if (
-      styleNamePropValue.type === 'StringLiteral' &&
-      styleNamePropValue.value.split(' ').length > 1
+      styleNamePropValue.type === "StringLiteral" &&
+      styleNamePropValue.value.split(" ").length > 1
     ) {
       transformClassNamesToClsx(styleNameProp, styleNamePropValue);
       return;
@@ -294,30 +305,66 @@ const modifyStyleNameProp = (
 
     const isKeyInKebabCase = isKebabCase(
       styleNamePropValue,
-      styleNamePropValue.value,
+      styleNamePropValue.value
     );
 
     j(styleNameProp).replaceWith(
       j.jsxAttribute(
-        j.jsxIdentifier('className'),
+        j.jsxIdentifier("className"),
         j.jsxExpressionContainer(
-          styleNamePropValue.type === 'JSXExpressionContainer'
+          styleNamePropValue.type === "JSXExpressionContainer"
             ? modifyStyleNameExpression(styleNamePropValue.expression)
             : j.memberExpression(
-                j.identifier('styles'),
+                j.identifier("styles"),
                 isKeyInKebabCase
                   ? j.stringLiteral(styleNamePropValue.value)
                   : j.identifier(styleNamePropValue.value),
-                isKeyInKebabCase,
-              ),
-        ),
-      ),
+                isKeyInKebabCase
+              )
+        )
+      )
     );
+
+    // if classNamePropValue is not null and a string, append it to the clsx expression
+    if (classNamePropValue && classNamePropValue?.type === "StringLiteral") {
+      j(styleNameProp).replaceWith(
+        j.jsxAttribute(
+          j.jsxIdentifier("className"),
+          j.jsxExpressionContainer(
+            j.callExpression(j.identifier("clsx"), [
+              styleNamePropValue,
+              classNamePropValue,
+            ])
+          )
+        )
+      );
+
+      clsxExpressionUsed = true;
+    }
+
+    // find clsx expression in styleName prop
+    const clsxExpressionCollection = j(styleNameProp).find(j.CallExpression, {
+      callee: {
+        name: "clsx",
+      },
+    });
+
+    clsxExpressionCollection.forEach((clsxExpression) => {
+      j(clsxExpression).replaceWith(
+        getModifiedClsxExpression(clsxExpression.node, classNamePropValue)
+      );
+    });
   });
 
-  const clsxExpression = source
-    .find(j.CallExpression)
-    .filter((path) => path.node.callee.name === 'clsx');
+  const clsxExpression = source.find(j.CallExpression).filter((path) => {
+    // filter out those clsx calls that are in JSXExpressionContainer
+
+    const parent = path.parent.node;
+    return (
+      path.node.callee.name === "clsx" &&
+      parent.type !== "JSXExpressionContainer"
+    );
+  });
 
   clsxExpression.forEach((clsx) => {
     j(clsx).replaceWith(getModifiedClsxExpression(clsx.node));
@@ -329,12 +376,12 @@ const modifyStyleNameProp = (
 };
 
 const transform: Transform = (file) => {
-  const parsed = j.withParser('tsx')(file.source);
+  const parsed = j.withParser("tsx")(file.source);
 
   if (getScssImports(parsed).length) {
     const styleNameProps = parsed
       .find(j.JSXAttribute)
-      .filter((path) => path.node.name.name === 'styleName');
+      .filter((path) => path.node.name.name === "styleName");
 
     if (styleNameProps.length) {
       modifyScssImports(parsed);
@@ -350,7 +397,7 @@ const transform: Transform = (file) => {
   }
 
   const outputOptions = {
-    quote: 'single',
+    quote: "single",
     trailingComma: true,
   };
 
